@@ -1,249 +1,33 @@
-
-理想与现实之间
-学习的最好方法就是blog
- 博客园 首页 新随笔 联系 订阅 管理	
-  68 Posts :: 2 Stories :: 427 Comments :: 12 Trackbacks
-公告
-
-
-昵称：Justin Shen
-园龄：10年9个月
-粉丝：14
-关注：0
-+加关注
-搜索
- 
- 
-常用链接
-我的随笔
-我的评论
-我的参与
-最新评论
-我的标签
-随笔分类
-编译原理学习(2)
-技术随想(2)
-学习笔记
-随笔档案
-2008年11月 (1)
-2008年4月 (1)
-2007年12月 (2)
-2005年11月 (1)
-2005年1月 (1)
-2004年12月 (6)
-2004年11月 (3)
-2004年10月 (7)
-2004年9月 (10)
-2004年8月 (1)
-2004年7月 (1)
-2004年6月 (1)
-2004年5月 (2)
-2004年4月 (13)
-2004年3月 (18)
-推荐排行榜
-1. C++ Traits(4)
-2. C#： 方法的默认参数(1)
-3. 关于正则表达式、正则文法、NFA、LR(1)(1)
-4. [.Net 4.0]泛型的协变，以及高阶函数对泛型的影响 Part 1(1)
-用C++ std::priority_queue　实现哈夫曼算法
-我想每个计算机专业的学生或多或少都接触过哈夫曼编码，数据结构中的老问题了。大体就是给出一些字符，和这些字符的出现频率，让你为这些字符设计一个二进制编码，要求频率最高的字符的编码最短。解决的方法是构造一棵哈夫曼树（二叉树），其基本思路是，每次从这些字符中挑出两个频率最低的，然后构造一个新的结点，使新结点的左右孩子指针分别指向那两个节点。我想这个大家都很清楚了，我就不多说了。主要讲下这次我用C++实现时遇到的问题。首先，我定义了一个哈夫曼树结点：
-
-class hNode
-{
-public:
-friend bool operator > (hNode n1,hNode n2);　//定义了大于符号，供优先队列排列使用
- hNode(string d="",int i=0,hNode* l = NULL,hNode* r =NULL):left(l),right(r),data(d),value(i){} 
- hNode* left;
- hNode* right;
- string data; //储存的字符串
- int value; //字符串出现的次数
-};
-
-bool operator >(hNode n1,hNode n2)
-{
- return n1.value > n2.value;
-}
-因为只是算法课的小作业，所以我也不准备为hNode定义完整的二叉树操作，仅仅只是存放数据的对象，所以只有一个构造函数，并且所有的data member都是公有的。
-
-这此写这个算法会遇到大麻烦，主要因为是用了std::priority_queue容器。当时考虑到在哈夫曼中要每次挑选两个频率最小（即出现次数最小，我那个hNode里的value是出现的次数），很自然的就想到了std::priority_queue容器，优先队列每次都会弹出队列中权值最高的元素，这个特性无疑是实现哈夫曼算法的最佳选择。然而因为第一次用std::priority_queue容器，结果出了不少问题，好在最后都一一解决，也学到了不少东西。
-
-初步的设想是这样的，先把所有的hNode对象都压入优先队列中去，然后每次弹出两个，组成一个新的结点，再把新的结点压入队列，重复这一步骤，当队列中只有一个元素时，哈夫曼树也就完成了。像这样：（是错的，可别学）
-
-while(...)
-{
-std::priority_queue<hNode> q;
-.....
-hNode h1 = q.top();
-q.pop();
-hNode h2 = q.top();
-q.pop();
-hNode r;
-r.left = h1;
-r.right = h2;
-r.value = h1.value + h2.value;
-q.push(r);
-}
-
-然而遭遇的第一个问题是，STL的所有容器的的插入都是基于by value语义的，也就是要生成一个对象的副本放在容器中。这样的后果就是hNode的left,right指针都指到不知道什么地方去了。大家可以稍微画几个图试一下，就知道出了什么问题了。考虑一下后，发现如果队列里存放hNode的指针，就不会出现这个问题了，于是改写成：
-hNode* makeTree(priority_queue<hNode*> pq)
-{
- hNode* p1 = NULL;
- hNode* p2 = NULL;
- hNode* r = NULL;
- while( !pq.empty())
- {
-  p1 = pq.top();
-  pq.pop();
-  if (pq.empty()) 
-  {
-   r = p1;
-   return r;
-  }
-  p2 = pq.top();
-  pq.pop();
-  r = new hNode;
-  r->left = p1;
-  r->right = p2;
-  r->value = p1->value +p2->value;
-  pq.push(r);
- }
- 
- return NULL;
-}
-
-然而马上遭遇了第二个问题。std::priority_queue在判断优先关系的时候，直接比较指针的地址，而不是指针指向的对象的大小关系。而指针不是类，我没办法重写指针的比较操作。程序陷入了困境之中。std::priority_queue默认使用Greater<>模板来生成一个function object来对元素进行比较，我试图为Greater<>写一个hNode*的特化版本来改变优先队列对hNode*的比较，然而也没有成功。山重水复疑无路之时，突然想到为什么不直接为优先队列写一个function object来替代Greater<>不就可以了吗？赶快写下如下代码：
-
-struct phNodeComp
-{
-  bool operator () (const hNode*& left,const hNode*& right) const
- {
-  return left->value > right->value;
- }
-};
-
-然后把std::priority_queue的申明变为：
-priority_queue<hNode*,vector<hNode*>,phNodeComp > pq;
-
-终于把这个问题给解决了。看样子仅从书本上获得的知识是不牢靠的，一定要自己实践了才会有真正的认识。
-
-绿色通道： 好文要顶 关注我 收藏该文与我联系 
-Justin Shen
-关注 - 0
-粉丝 - 14
-+加关注
-0 0
-(请您对文章做出评价)
-? 上一篇：HttpWebResponse 的问题
-? 下一篇：C# 泛型：　我要说完全的失望啊....!!!!
-posted on 2004-03-19 19:47 Justin Shen 阅读(4184) 评论(10) 编辑 收藏
-
-Feedback
-
-#1楼 2004-03-20 01:06 earthharp
-只有成树 
-没有编码解码吗？ 
-我觉得用BucketSort还要优秀一些 
-注意你的空间是否正确回收
-
-  
-
-#2楼 2004-03-20 11:10 Justin Shen
-目前只做到把每个字符的编码打印出来，因为老师只要求到这点，实际做哈夫曼编码还是会有一点问题。空间回收在遍历哈夫曼树的过程中一起完成了。 
-
-vector<int> v; 
-void DoPrint(hNode* r) 
-{ 
-if (r->left ==NULL && r->right == NULL) 
-{ 
-cout << r->data <<": "; 
-for (int i = 0;i<v.size();++i) 
-cout << v[i]; 
-cout << endl; 
-v.pop_back(); 
-delete r; 
-return ; 
-} 
-if (r->left) 
-{ 
-v.push_back(0); 
-DoPrint(r->left); 
-} 
-if (r->right) 
-{ 
-v.push_back(1); 
-DoPrint(r->right); 
-} 
-v.pop_back(); 
-}
-
-  
-
-#3楼 2004-04-08 19:17 代其锋
-我的qq94381334
-
-  
-
-#4楼 2004-04-29 19:59 simon
-thx
-
-  
-
-#5楼 2004-05-30 17:43 yijian
-译码也不难嘛，只需输入二进制字符就可了，然后判断是0还是1，是 
-1就在右子树找，顺次下去，0在左找，最后判断是否结点有左右子树 
-，没有则打印信息。回到头结点，for语句循环即可
-
-  
-
-#6楼 2004-05-30 17:44 代其锋（yijian）
-译码也不难嘛，只需输入二进制字符就可了，然后判断是0还是1，是 
-1就在右子树找，顺次下去，0在左找，最后判断是否结点有左右子树 
-，没有则打印信息。回到头结点，for语句循环即可 
-
-  
-
-#7楼 2004-11-13 23:53 tjes
-能不能用VB编一个出来看看
-
-  
-
-#8楼 2005-01-03 15:12 122
-能用vb编一个哈夫曼编码吗?
-
-  
-
-#9楼 2005-01-03 15:13 王峨林[未注册用户]
-能用vb编一个哈夫曼编码吗?
-
-  
-
-#10楼 2006-06-10 11:27 56i[未注册用户]
-@王峨林 
-
-  
-
-刷新评论刷新页面返回顶部
-注册用户登录后才能发表评论，请 登录 或 注册，访问网站首页。
-【免费课程】案例：信息排列效果
-【推荐】50万行VC++源码: 大型组态工控、电力仿真CAD与GIS源码库
-融云，免费为你的App加入IM功能——让你的App“聊”起来！！
-写“听云”原创博文，赢取iPhone 6超级大奖
-
-最新IT新闻:
-· 马云竞争哲学：让对手心情变糟 对方一乱你才有可能赢
-· 谷歌欲公开叫板亚马逊：推一键购买按钮与两日达服务
-· 开了四家公司 这个在校生依然觉得学位很重要
-· 美国总统奥巴马的第一行代码
-· Swift，任重而道远！
-? 更多新闻...
-
-最新知识库文章:
-· Linkedin工程师是如何优化他们的Java代码的
-· 做一个网站多少钱？
-· 对SOA架构思想的一些说明
-· 为什么社交网络中数据翻页技术复杂
-· 案例分析：基于消息的分布式架构
-? 更多知识库文章...
-Powered by: 
-博客园 
-Copyright ? Justin Shen
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
+,.s;dcpvo ijmcdx,s.wpdivucjxmsz,a.q;spdovib jmc,x.s;dovj m,x.z/;aqidfjmdbx,v lcvoIDSRhvja kedfgsvfhire45ewdsaxbcnkmlxpo90*&^%$Zzvgkmloirw987eER)(*&^%R#ENMDKCIYCDNS<loiuHCD<>:POI,>:FP$JEKDOC(V*&^TGnM$<LORIFUYGB E<LoifuyGRBNM<LVCOIYTEVWMQ<A>Z?"PSO*&^%REFGDSBNZM<L:PAPWLD>X?"S{DPELR>?"{D_)(*&Y#NCMJVUYTGRENMmfdsaio foidsa iodsafiosadfc oidsfdsafjidsaf nidsfj of okdsaqwertyuiophgfdsuhznx m,.;lcoxisuawhenrmf,.v/'c [p 
