@@ -15,10 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Old_ver.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="Project2.cpp">
+    <ClCompile Include="Project3.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
