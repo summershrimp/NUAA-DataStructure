@@ -18,5 +18,13 @@
     <ClCompile Include="Project1.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Calendar.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Calendar.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
