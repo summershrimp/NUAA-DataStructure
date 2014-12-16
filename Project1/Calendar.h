@@ -5,7 +5,7 @@ typedef struct item_int item, *Calendar;
 
 struct paramThread
 {
-	Calendar income, run, past;
+	Calendar *income, *run, *past;
 };
 
 struct item_int
@@ -17,12 +17,13 @@ struct item_int
 	char people[64];
 	char location[64];
 	time_t remenderTime;
+	bool alreadyReminded = false;
 	item *next;
 	item *prev;
 };
 void initCalendar(Calendar * c);
 void addItem(Calendar *c, item it);
-void checkItem(Calendar income, Calendar run, Calendar past);
+void checkItem(Calendar *income, Calendar *run, Calendar *past);
 void checkRemender(Calendar income, Calendar run, Calendar past);
-
+void moveItem(Calendar *ci, item *i, Calendar * c);
 #endif

@@ -18,48 +18,99 @@ void showIncome();
 void showIncomeByDay();
 void showIncomeByWeek();
 void showIncomeByMonth();
+void writeToFile();
+void readFromFile();
 DWORD WINAPI CheckCalendar(LPVOID lp);
 
 int main(void)
 {
+	printf("%d", sizeof(item));
 	struct paramThread tp;
-	tp.income = income;
-	tp.past = past;
-	tp.run = run;
+	tp.income = &income;
+	tp.past = &past;
+	tp.run = &run;
 	hCheck = CreateThread(NULL, 0, CheckCalendar, &tp, 0, NULL);
 	int input;
+	readFromFile();
 	while (1)
 	{
-		system("cls >nul");
+		system("cls");
 		showMenu(0);
 		scanf("%d", &input);
 		switch (input)
 		{
 		case 1:
 			addPlan();
+			system("pause");
 			break;
 		case 2:
 			showPast();
+			system("pause");
 			break;
 		case 3:
 			showRun();
+			system("pause");
 			break;
 		case 4:
 			showIncome();
 			break;
 		case 99:
+			writeToFile();
 			return 0;
 		}
 	}
 	return 0;
 }
 
+void writeToFile()
+{
+	FILE *fp = fopen("plans.db", "wb+");
+	if (!fp)
+		return;
+	item *p = income;
+	while (p)
+	{
+		fwrite(p, sizeof(item), 1, fp);
+		p = p->next;
+	}
+	p = run;
+	while (p)
+	{
+		fwrite(p, sizeof(item), 1, fp);
+		p = p->next;
+	}
+	p = past;
+	while (p)
+	{
+		fwrite(p, sizeof(item), 1, fp);
+		p = p->next;
+	}
+	fclose(fp);
+}
+
+void readFromFile()
+{
+	FILE *fp = fopen("plans.db", "rb");
+	if (!fp)
+		return;
+	item i;
+	fread(&i, sizeof(item), 1, fp);
+	while (!feof(fp))
+	{
+		addItem(&income, i);
+		fread(&i, sizeof(item), 1, fp);
+	}
+	fclose(fp);
+	checkRemender(income, run, past);
+}
+
 DWORD WINAPI CheckCalendar(LPVOID lp)
 {
+	struct paramThread *p = (struct paramThread *)lp;
 	while (1)
 	{
-		struct paramThread *p = (struct paramThread *)lp;
-		checkRemender(p->income, p->run, p->past);
+		checkItem(p->income, p->run, p->past);
+		checkRemender(*(p->income), *(p->run), *(p->past));
 		Sleep(1000);
 	}
 	return 0;
@@ -67,10 +118,11 @@ DWORD WINAPI CheckCalendar(LPVOID lp)
 
 void addPlan()
 {
+	system("cls");
 	item i;
 	struct tm t;
 	int year, mon, day, hh, mm, ss;
-	system("cls>nul");
+	system("cls");
 	printf("请输入计划ID:");
 	scanf("%d", &(i.ID));
 	printf("请输入开始时间，格式为 年-月-日 时:分:秒 \n");
@@ -106,34 +158,35 @@ void addPlan()
 	scanf("%s", i.people);
 	printf("请输入去往地点：");
 	scanf("%s", i.location);
+	i.alreadyReminded = false;
 	addItem(&income,i);
 	printf("添加成功！");
 }
 void showPast()
 {
-	system("cls >nul");
+	system("cls");
 	Calendar t = past;
 	while (t)
 	{
-		printf("名称：\t%s\n开始时间：%s\t\n结束时间：%s\t\n事件名：%s\t\n同行人员：%s\t\n地点：%s\t\n提醒时间：%s\t\n",
+		printf("名称：\t%s\n开始时间：\t%s结束时间：\t%s事件名：\t%s\n同行人员：\t%s\n地点：\t%s\n提醒时间：\t%s",
 			t->name, ctime(&t->startTime), ctime(&t->endTime), t->name, t->people, t->location, ctime(&t->remenderTime));
 		t = t->next;
 	}
 }
 void showRun()
 {
-	system("cls >nul");
+	system("cls");
 	Calendar t = run;
 	while (t)
 	{
-		printf("名称：\t%s\n开始时间：%s\t\n结束时间：%s\t\n事件名：%s\t\n同行人员：%s\t\n地点：%s\t\n提醒时间：%s\t\n",
+		printf("名称：\t%s\n开始时间：\t%s结束时间：\t%s事件名：\t%s\n同行人员：\t%s\n地点：\t%s\n提醒时间：\t%s",
 			t->name, ctime(&t->startTime), ctime(&t->endTime), t->name, t->people, t->location, ctime(&t->remenderTime));
 		t = t->next;
 	}
 }
 void showIncome()
 {
-	system("cls >nul");
+	system("cls");
 	showMenu(4);
 	int choice;
 	scanf("%d",&choice);
@@ -141,12 +194,15 @@ void showIncome()
 	{
 	case 1:
 		showIncomeByDay();
+		system("pause");
 		break;
 	case 2:
 		showIncomeByWeek();
+		system("pause");
 		break;
 	case 3:
 		showIncomeByMonth();
+		system("pause");
 		break;
 	default:
 		break;
@@ -154,7 +210,7 @@ void showIncome()
 }
 void showIncomeByDay()
 {
-	system("cls >nul");
+	system("cls");
 	Calendar t = income;
 	time_t tt = time(nullptr);
 	struct tm *tn = localtime(&tt);
@@ -164,17 +220,15 @@ void showIncomeByDay()
 		ti = localtime(&(t->startTime));
 		if (tn->tm_year == ti->tm_year && ti->tm_mon == tn->tm_mon && ti->tm_mday == tn->tm_mday)
 		{
-			printf("名称：\t%s\n开始时间：%s\t\n结束时间：%s\t\n事件名：%s\t\n同行人员：%s\t\n地点：%s\t\n提醒时间：%s\t\n",
+			printf("名称：\t%s\n开始时间：\t%s结束时间：\t%s事件名：\t%s\n同行人员：\t%s\n地点：\t%s\n提醒时间：\t%s",
 				t->name, ctime(&t->startTime), ctime(&t->endTime), t->name, t->people, t->location, ctime(&t->remenderTime));
 		}
 		t = t->next;
-		free(ti);
 	}
-	free(tn);
 }
 void showIncomeByWeek()
 {
-	system("cls >nul");
+	system("cls");
 	Calendar t = income;
 	time_t tt = time(nullptr);
 	struct tm *tn = localtime(&tt);
@@ -184,16 +238,15 @@ void showIncomeByWeek()
 		ti = localtime(&(t->startTime));
 		if (tn->tm_year == ti->tm_year && ti->tm_mon == tn->tm_mon && (ti->tm_mday - ti->tm_wday )<=( tn->tm_mday - tn->tm_wday + 7))
 		{
-			printf("名称：\t%s\n开始时间：%s\t\n结束时间：%s\t\n事件名：%s\t\n同行人员：%s\t\n地点：%s\t\n提醒时间：%s\t\n",
+			printf("名称：\t%s\n开始时间：\t%s结束时间：\t%s事件名：\t%s\n同行人员：\t%s\n地点：\t%s\n提醒时间：\t%s",
 				t->name, ctime(&t->startTime), ctime(&t->endTime), t->name, t->people, t->location, ctime(&t->remenderTime));
 		}
 		t = t->next;
-		free(ti);
 	}
 }
 void showIncomeByMonth()
 {
-	system("cls >nul");
+	system("cls");
 	Calendar t = income;
 	time_t tt = time(nullptr);
 	struct tm *tn = localtime(&tt);
@@ -203,7 +256,7 @@ void showIncomeByMonth()
 		ti = localtime(&(t->startTime));
 		if (tn->tm_year == ti->tm_year && ti->tm_mon == tn->tm_mon)
 		{
-			printf("名称：\t%s\n开始时间：%s\t\n结束时间：%s\t\n事件名：%s\t\n同行人员：%s\t\n地点：%s\t\n提醒时间：%s\t\n",
+			printf("名称：\t%s\n开始时间：\t%s结束时间：\t%s事件名：\t%s\n同行人员：\t%s\n地点：\t%s\n提醒时间：\t%s",
 				t->name, ctime(&t->startTime), ctime(&t->endTime), t->name, t->people, t->location, ctime(&t->remenderTime));
 		}
 		t = t->next;
@@ -212,7 +265,7 @@ void showIncomeByMonth()
 }
 void showMenu(int n)
 {
-	system("cls >nul");
+	system("cls");
 	switch (n)
 	{
 	case 4:
