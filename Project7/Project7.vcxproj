@@ -66,6 +66,9 @@
   <ItemGroup>
     <ClCompile Include="Project7.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="UnionSet.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

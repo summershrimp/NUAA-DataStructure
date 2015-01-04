@@ -2,6 +2,7 @@
 #include <iostream>
 #include <queue>
 #include <algorithm>
+#include <string>
 #include <cstdio>
 #include <bitset>
 using namespace std;
@@ -11,7 +12,7 @@ struct TreeNode
 	int Freq;
 	char Chr;
 	bool hasChr;
-	short Word;
+	string Word;
 	struct TreeNode *LChild;
 	struct TreeNode *RChild;
 	bool operator < (struct TreeNode & rhs)
@@ -41,7 +42,7 @@ void InitChars()
 	{
 		Chars[i].Chr = i;
 		Chars[i].Freq = 0;
-		Chars[i].Word = 32767;
+		Chars[i].Word = "";
 		Chars[i].hasChr = true;
 		Chars[i].LChild = nullptr;
 		Chars[i].RChild = nullptr;
@@ -91,22 +92,22 @@ struct TreeNode *MakeHuff(priority_queue<struct TreeNode*, vector<struct TreeNod
 	return t;
 }
 int tt = 0;
-void MakeDict(TreeNode *troot,unsigned int word,int deep)
+void MakeDict(TreeNode *troot,string word,int deep)
 {
 	if (deep > tt)
 		tt = deep;
 	troot->Word = word;
 	if(troot->LChild)
-		MakeDict(troot->LChild,  word << 1,deep+1);
+		MakeDict(troot->LChild,  word + "0",deep+1);
 	if (troot->RChild)
-		MakeDict(troot->RChild, (word << 1) + 1,deep+1);
+		MakeDict(troot->RChild, word + "1" ,deep+1);
 }
 short dict[128];
 
 void Compress()
 {
 	InitChars();
-	char buf[128];
+	char buf[128],buf2[128];
 	printf("请输入要编码的文件名：");
 	scanf("%s", buf);
 	FILE *fp = fopen(buf, "r");
@@ -114,33 +115,74 @@ void Compress()
 	fclose(fp);
 	AddToQueue(q);
 	TreeNode *root = MakeHuff(q);
-	MakeDict(root, 0, 1);
-	for (int i = 0; i < 128; i++)
-		dict[i] = Chars[i].Word;
+	MakeDict(root, "", 0);
+
 	printf("%d %d\n", tt, sizeof(short));
 	fp = fopen(buf, "r");
-	FILE *fw = fopen("compress.dat", "wb");
+	printf("请输入编码后的文件名：");
+	scanf("%s", buf2);
+	FILE *fw = fopen(buf2, "wb");
 	char ch = fgetc(fp);
+	int buff = 0;
+	int cbuff = 0;
 	while (!feof(fp))
 	{
-		fwrite(&dict[ch], sizeof(short), 1, fw);
+		string::iterator it = Chars[ch].Word.begin();
+		while (it != Chars[ch].Word.end())
+		{
+			switch (*it)
+			{
+			case '0':
+				buff = buff << 1;
+				cbuff++;
+				break;
+			case '1':
+				buff = (buff << 1) + 1;
+				cbuff++;
+				break;
+			}
+			if (cbuff == 32)
+			{
+				fwrite(&buff, sizeof(int), 1, fw);
+				cbuff = 0;
+			}
+			it++;
+		}
 		ch = fgetc(fp);
+	}
+	if (cbuff != 0)
+	{
+		for (int i = cbuff; i <= 32; i++)
+			buff = buff << 1;
+		fwrite(&buff, sizeof(int), 1, fw);
 	}
 	fclose(fp);
 	fclose(fw);
 	fp = fopen(strcat(buf, ".dicdb"), "wb+");
-	fwrite(dict, sizeof(dict), 1, fp);
+	fwrite(Chars, sizeof(Chars), 1, fp);
 	fclose(fp);
 
 }
 void Decompress()
 {
-	FILE *dic = fopen("test.txt.dicdb", "rb");
-	fread(dict, sizeof(dict), 1, dic);
+	char fbuf[128];
+	printf("请输入需要解密的文件名:");
+	scanf("%s", fbuf);
+	string fdic(fbuf);
+	FILE *dic = fopen((fdic+".dicdb").c_str(), "rb");
+	fread(Chars, sizeof(Chars), 1, dic);
 	fclose(dic);
-	FILE *fr = fopen("compress.dat", "rb");
-	FILE *fw = fopen("decompress.txt", "w+");
-	short cs;
+	FILE *fr = fopen(fbuf, "rb");
+	printf("请输入存放解密后的文件名:");
+	scanf("%s", fbuf);
+	FILE *fw = fopen(fbuf, "w+");
+
+	AddToQueue(q);
+	TreeNode *root = MakeHuff(q);
+	MakeDict(root, "", 0);
+
+
+	int cs;
 	fread(&cs, sizeof(short), 1, fr);
 	while (!feof(fr))
 	{
@@ -154,8 +196,8 @@ void Decompress()
 }
 int main(void)
 {
-	//Compress();
-	Decompress();
+	Compress();
+	//Decompress();
 	system("pause");
 	return 0;
 }

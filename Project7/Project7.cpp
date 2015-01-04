@@ -22,63 +22,66 @@ void RamdomMap(int x, int y)
 	system("cls");
 	if (map != nullptr)
 		delete map;
-	map = new vector<vector<int>>(y + 2, vector<int>(x + 2, 0));
-	visit = new vector<vector<bool>>(y + 2, vector<bool>(x + 2, 0));
+	map = new vector<vector<int>>(y*2 + 2, vector<int>(x*2 + 2, '-'));
+	visit = new vector<vector<bool>>(y*2 + 2, vector<bool>(x*2 + 2, 0));
 	vector<vector<int>> &map = *::map;
-	vector<vector<bool>> &map = *::map;
+	vector<vector<bool>> &visit = *::visit;
 	UnionSet us;
-	for (int j = 0; j <= y + 1; ++j)
+	int maxm = x*y;
+	map[1][1] = 'S';
+	for (int i = 0; i < x ;i++)
+	for (int j = 0; j < y; j++)
 	{
-		for (int i = 0; i <= x + 1; ++i)
-		{
-			map[j][i] = rand() % 2;
-			if (map[j][i]) us.Merge(j, i);
-		}
+		map[i * 2 + 1][j * 2 + 1] = '*';
 	}
-
-	while (!st.empty())
+	while (us.Find(1)!=us.Find(maxm))
 	{
+		int rx = (rand() % x);
+		int ry = (rand() % y);
+		int sx = rx+1;
+		int sy = ry+1;
+		rx = rx * 2 + 1;
+		ry = ry * 2 + 1;
+		//int count = 0;
+		/*for (int i = 0; i < 4; i++)
+		{
+			if (map[ry + LocY[i]][rx + LocX[i]]) count++;
+		}
+		if (count >1)
+				continue;*/
+		int loc = rand() % 4;
+		if ((ry + LocY[loc]<1 || ry + LocY[loc] > y*2+1) || (rx + LocX[loc]<1 || rx + LocX[loc] > x*2+1))
+			continue;
+		rx += LocX[loc];
+		ry += LocY[loc];
+		//map[ry][rx] = 1;
+		//map[ry + LocY[loc]][rx + LocX[loc]] = 1;
+		if (ry % 2 == 0)
+		{
+			if (us.Find(((sy - 1) + 1)*x + sx) == us.Find(((sy - 1) - 1)*x + sx))
+				continue;
+			map[ry][rx] = '0';
+			us.Merge( (((sy - 1) + 1)*x + sx), ((sy - 1) - 1)*x + sx );
+		}
+		else
+		{
+			if ( us.Find( ((sy - 1)*x + sx + 1) ) == us.Find( ((sy - 1)*x + sx - 1) ) )
+				continue;
+			map[ry][rx] = '0';
+			us.Merge(((sy - 1)*x + sx + 1), ((sy - 1)*x + sx - 1));
+		}
 		COORD pos = { 0, 0 };
 		SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
-		for (int j = 0; j <= y + 1; ++j)
+		for (int j = 0; j <= y*2 + 1; ++j)
 		{
-			for (int i = 0; i <= x + 1; ++i)
+			for (int i = 0; i <= x*2 + 1; ++i)
 			{
-				printf( "%d", map[j][i]);
+				printf("%c", map[j][i]);
 			}
 			printf("\n");
 		}
-		Point pt = st.top();
-		printf("正在点(%d,%d)\n", pt.x, pt.y);
-		
-		if (pt.y == y && pt.x == x)
-			break;
-		int i = rand() % 4;
-		switch (i)
-		{
-		case UP:printf("测试向↑走"); break;
-		case DOWN:printf("测试向↓走"); break;
-		case LEFT:printf("测试向←走"); break;
-		case RIGHT:printf("测试向→走"); break;
+		printf("正在点(%d,%d)\t\t\n", sx, sy);
 
-		}
-		Point ppush;
-		ppush.x = pt.x + LocX[i];
-		ppush.y = pt.y + LocY[i];
-		if (!map[ppush.y][ppush.x] && ppush.x > 0 && ppush.x <= x && ppush.y > 0 && ppush.y <= y)
-		{
-			st.push(ppush);
-			map[ppush.y][ppush.x] = 1;
-			bool flag = false;
-			
-			if (flag)
-			{
-				map[ppush.y][ppush.x] = 0;
-				st.pop();
-				continue;
-			}
-		}
-		Sleep(500);
 	}
 	
 	FILE *fp = fopen("maze.map", "w");
@@ -91,6 +94,7 @@ void RamdomMap(int x, int y)
 		fprintf(fp, "\n");
 	}
 	fclose(fp);
+	system("pause");
 }
 
 int main(void)
