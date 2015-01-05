@@ -127,6 +127,8 @@ void Compress()
 	int cbuff = 0;
 	while (!feof(fp))
 	{
+		putchar(ch);
+		cout <<' '<< Chars[ch].Word<<endl;
 		string::iterator it = Chars[ch].Word.begin();
 		while (it != Chars[ch].Word.end())
 		{
@@ -144,7 +146,9 @@ void Compress()
 			if (cbuff == 32)
 			{
 				fwrite(&buff, sizeof(int), 1, fw);
+				fflush(fw);
 				cbuff = 0;
+				buff = 0;
 			}
 			it++;
 		}
@@ -152,13 +156,13 @@ void Compress()
 	}
 	if (cbuff != 0)
 	{
-		for (int i = cbuff; i <= 32; i++)
+		for (int i = cbuff; i < 32; i++)
 			buff = buff << 1;
 		fwrite(&buff, sizeof(int), 1, fw);
 	}
 	fclose(fp);
 	fclose(fw);
-	fp = fopen(strcat(buf, ".dicdb"), "wb+");
+	fp = fopen(strcat(buf2, ".dicdb"), "wb+");
 	fwrite(Chars, sizeof(Chars), 1, fp);
 	fclose(fp);
 
@@ -170,7 +174,7 @@ void Decompress()
 	scanf("%s", fbuf);
 	string fdic(fbuf);
 	FILE *dic = fopen((fdic+".dicdb").c_str(), "rb");
-	fread(Chars, sizeof(Chars), 1, dic);
+	cout <<"dic read count:"<<fread(Chars, sizeof(TreeNode), 128, dic)<<endl;
 	fclose(dic);
 	FILE *fr = fopen(fbuf, "rb");
 	printf("请输入存放解密后的文件名:");
@@ -181,23 +185,56 @@ void Decompress()
 	TreeNode *root = MakeHuff(q);
 	MakeDict(root, "", 0);
 
-
-	int cs;
-	fread(&cs, sizeof(short), 1, fr);
+	TreeNode *tn = root;
+	unsigned int cs;
+	fread(&cs, sizeof(unsigned int), 1, fr);
 	while (!feof(fr))
 	{
-		for (int i = 0; i < 128; i++)
-			if (dict[i] == cs)
-				fputc(i, fw);
-		fread(&cs, sizeof(short), 1, fr);
+		int t;
+		for (int i = 31; i >= 0; --i)
+		{
+			if (i == 31)
+				t = cs >> 31;
+			else
+				t = (cs >> i) - ((cs >> (i + 1)) << 1);
+			switch (t)
+			{
+			case 0:
+				if(tn->LChild)
+					tn = tn->LChild;
+				break;
+			case 1:
+				if(tn->RChild)
+					tn = tn->RChild;
+				break;
+			}
+			if (tn->hasChr)
+			{
+				fputc(tn->Chr, fw);
+				fflush(fw);
+				tn = root;
+			}
+		}
+		fread(&cs, sizeof(unsigned int ), 1, fr);
 	}
 	fclose(fr);
 	fclose(fw);
 }
 int main(void)
 {
-	Compress();
-	//Decompress();
+	printf("请选择压缩或解压(c/压缩，d/解压):");
+	char c;
+	scanf("%c",&c);
+	switch (c)
+	{
+	case 'c':
+		Compress();
+		break;
+	case 'd':
+		Decompress();
+		break;
+	}
+
 	system("pause");
 	return 0;
 }
