@@ -13,11 +13,12 @@
 	class LinkHash
 	{
 	private:
-		vector<hash_node*> hashtab;
-		int(*HashFunc)(T t);
+		std::vector<hash_node<T>*> hashtab;
+		int(*HashFunc)(T t,int n);
+		int size;
 	public:
-		LinkHash(int n) :hashtab(n,nullptr), HashFunc = nullptr;
-		void setHashFunc(int(*hashfunc)(T t))
+		LinkHash(int n) :size(n), hashtab(n, nullptr), HashFunc(nullptr){};
+		void setHashFunc(int(*hashfunc)(T t,int n))
 		{
 			HashFunc = hashfunc;
 		}
@@ -25,31 +26,31 @@
 		{
 			if (HashFunc == nullptr)
 				return -1;
-			int h = HashFunc(e);
+			int h = HashFunc(e,size);
 			int count = 0;
-			hash_node *no = new hash_node;
+			hash_node<T> *no = new hash_node<T>;
 			if (hashtab[h]!=nullptr)
 				std::cout << "³åÍ»!²åÈë" << h << endl;
-			no->next = hashtab[n];
-			hashtab[n] = no;
+			no->next = hashtab[h];
+			hashtab[h] = no;
 			no->e = e;
 			return h;
 		}
 		T *Find(T e)
 		{
 			if (HashFunc == nullptr)
-				return -1;
-			int h = HashFunc(e);
-			hash_node *p = hashtab[h];
-			while (h)
+				return NULL;
+			int h = HashFunc(e,size);
+			hash_node<T> *p = hashtab[h];
+			while (p)
 			{
-				if (h->e == T)
-					return &(h->e);
-				h = h->next;
+				if (p->e == e)
+					return &(p->e);
+				p = p->next;
 			}
 			return NULL;
 		}
-		T &opreator[](int n)
+		T &operator[](int n)
 		{
 			return hashtab[n];
 		}

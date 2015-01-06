@@ -24,7 +24,7 @@ struct TreeNode
 		return(this->Freq > rhs.Freq);
 	}
 };
-struct TreeNode Chars[128];
+struct TreeNode Chars[256];
 
 struct NodeComp
 {
@@ -38,7 +38,7 @@ priority_queue<struct TreeNode*, vector<struct TreeNode*>, NodeComp > q;
 
 void InitChars()
 {
-	for (int i = 0; i < 128; ++i)
+	for (int i = 0; i < 256; ++i)
 	{
 		Chars[i].Chr = i;
 		Chars[i].Freq = 0;
@@ -61,7 +61,7 @@ void CountChars(FILE *fp)
 }
 void AddToQueue(priority_queue<struct TreeNode*, vector<struct TreeNode*>,NodeComp > &q)
 {
-	for (int i = 0; i < 128; i++)
+	for (int i = 0; i < 256; i++)
 		q.push(Chars+i);
 }
 
@@ -122,7 +122,7 @@ void Compress()
 	printf("请输入编码后的文件名：");
 	scanf("%s", buf2);
 	FILE *fw = fopen(buf2, "wb");
-	char ch = fgetc(fp);
+	unsigned char ch = fgetc(fp);
 	int buff = 0;
 	int cbuff = 0;
 	while (!feof(fp))
@@ -174,7 +174,7 @@ void Decompress()
 	scanf("%s", fbuf);
 	string fdic(fbuf);
 	FILE *dic = fopen((fdic+".dicdb").c_str(), "rb");
-	cout <<"dic read count:"<<fread(Chars, sizeof(TreeNode), 128, dic)<<endl;
+	cout <<"dic read count:"<<fread(Chars, sizeof(TreeNode), 256, dic)<<endl;
 	fclose(dic);
 	FILE *fr = fopen(fbuf, "rb");
 	printf("请输入存放解密后的文件名:");

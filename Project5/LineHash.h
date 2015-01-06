@@ -8,12 +8,13 @@
 	class LineHash
 	{
 	private:
-		vector<T> hashtab;
-		vector<bool> inuse;
-		int(*HashFunc)(T t);
+		std::vector<T> hashtab;
+		std::vector<bool> inuse;
+		int(*HashFunc)(T t,int n);
+		int size;
 	public:
-		LineHash(int n):hashtab(n),inuse(n,false),HashFunc = nullptr;
-		void setHashFunc(int(*hashfunc)(T t))
+		LineHash(int n) :size(n), hashtab(n), inuse(n, false), HashFunc(nullptr){};
+		void setHashFunc(int(*hashfunc)(T t,int n))
 		{
 			HashFunc = hashfunc;
 		}
@@ -21,28 +22,47 @@
 		{
 			if (HashFunc == nullptr)
 				return -1;
-			int h = HashFunc(e);
+			int h = HashFunc(e,size);
 			int count = 0;
-			while (inuse[h]) { ++h; ++count; }
+			int th = h;
+			do
+			{
+				if (inuse[h])
+				{
+					++h; ++count;
+					if (h == size)
+						h %= size;
+				}
+				else break;
+			} while (th != h);
+
+			if (h == size)
+			{
+				std::cout << "±íÂú£¡Ê§°Ü" << endl;
+				return -1;
+			}
 			hashtab[h] = e;
 			inuse[h] = true;
-			std::cout << "³åÍ»!Î»ÒÆ£º" << count << endl;
+			if (count>0)std::cout << "³åÍ»!Î»ÒÆ£º" << count << endl;
 			return h;
 		}
 		T *Find(T e)
 		{
 			if (HashFunc == nullptr)
-				return -1;
-			int h = HashFunc(e);
-			while (h < hashtab)
+				return NULL;
+			int h = HashFunc(e,size);
+			int th = h;
+			do
 			{
-				if (hashtab[h] == T)
+				if (hashtab[h] == e)
 					return &(hashtab[h]);
 				h++;
-			}
+				if (h == size)
+					h %= size;
+			} while (th!=h);
 			return NULL;
 		}
-		T &opreator[](int n)
+		T &operator[](int n)
 		{
 			return hashtab[n];
 		}
