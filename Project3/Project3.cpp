@@ -125,6 +125,7 @@ void Compress()
 	unsigned char ch = fgetc(fp);
 	int buff = 0;
 	int cbuff = 0;
+	int allbuff = 0;
 	while (!feof(fp))
 	{
 		putchar(ch);
@@ -137,10 +138,12 @@ void Compress()
 			case '0':
 				buff = buff << 1;
 				cbuff++;
+				allbuff++;
 				break;
 			case '1':
 				buff = (buff << 1) + 1;
 				cbuff++;
+				allbuff++;
 				break;
 			}
 			if (cbuff == 32)
@@ -164,17 +167,20 @@ void Compress()
 	fclose(fw);
 	fp = fopen(strcat(buf2, ".dicdb"), "wb+");
 	fwrite(Chars, sizeof(Chars), 1, fp);
+	fwrite(&allbuff, sizeof(int), 1, fp);
 	fclose(fp);
 
 }
 void Decompress()
 {
 	char fbuf[128];
+	int allbuff;
 	printf("请输入需要解密的文件名:");
 	scanf("%s", fbuf);
 	string fdic(fbuf);
 	FILE *dic = fopen((fdic+".dicdb").c_str(), "rb");
 	cout <<"dic read count:"<<fread(Chars, sizeof(TreeNode), 256, dic)<<endl;
+	fread(&allbuff, sizeof(int), 1, dic);
 	fclose(dic);
 	FILE *fr = fopen(fbuf, "rb");
 	printf("请输入存放解密后的文件名:");
@@ -191,6 +197,7 @@ void Decompress()
 	while (!feof(fr))
 	{
 		int t;
+		bool endflag = false;
 		for (int i = 31; i >= 0; --i)
 		{
 			if (i == 31)
@@ -214,7 +221,14 @@ void Decompress()
 				fflush(fw);
 				tn = root;
 			}
+			allbuff--;
+			if (allbuff == 0)
+			{
+				endflag = true;
+				break;
+			}
 		}
+		if (endflag) break;
 		fread(&cs, sizeof(unsigned int ), 1, fr);
 	}
 	fclose(fr);
