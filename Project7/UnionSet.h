@@ -17,7 +17,7 @@ public:
 		if (Fa.size() <= u)
 			Init(u);
 		while (u != Fa[u])
-			return Find(Fa[u]);
+			return Fa[u] = Find(Fa[u]);
 		return u;
 	}
 	bool Same(int x, int y)
