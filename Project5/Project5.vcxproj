@@ -64,6 +64,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Project5.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="LineHash.h" />
+    <ClInclude Include="LinkHash.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
